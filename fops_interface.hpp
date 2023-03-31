@@ -12,11 +12,17 @@ namespace Fops {
 	static char const* kLsigExt{".lsig"};
 	// ERROR
 	enum class error_t {
-		kOutRagne, kOffsetOutRagne, kPatterSizeOutRange
+		kOutRagne, kOffsetOutOfRagne, kPatterSizeOutOfRange
 	};
 	// STATE
 	enum class state_t {
-		kFound, kNotFound
+		kFound, kNotFound, kCheckSuccesfull
+	};
+	// INDEX
+	struct Index {
+		static constexpr uint8_t kError{};
+		static constexpr uint8_t kState{1};
+		static constexpr uint8_t kPtr{2};
 	};
 	// RET
 	using ret_t = std::variant<error_t, state_t, uint8_t const*>;
