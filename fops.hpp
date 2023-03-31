@@ -70,6 +70,15 @@ namespace Fops {
 std::random_device rd{};
 std::mt19937 gen{rd()};
 std::uniform_int_distribution<uint64_t> d{0, 0xFFFFFFFF};
+struct VectorHasher {
+    int operator()(std::vector<uint8_t> const& v) const {
+        int hash = v.size();
+        for(auto const &i : v) {
+            hash ^= (int)i + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+        return hash;
+    }
+};
 // NAMESPACE FOPS WRITE
 namespace Fops::Multi {
 	// WRITE
