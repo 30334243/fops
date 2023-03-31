@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <algorithm>
 #include "fops_interface.hpp"
 
 // NAMESPACE FOPS
@@ -71,5 +72,44 @@ namespace Fops::Multi {
 				};
 			};
 		}
+}
+// NAMESPACE FOPS CHECK
+namespace Fops::Check {
+	static ret_t Search(uint8_t const* pbeg,
+							  uint8_t const* pend,
+							  uint8_t const* pattern_pbeg,
+							  uint8_t const* pattern_pend,
+							  size_t offset = 0) {
+		ret_t ret{};
+		if (!(pbeg < pend)) {
+			ret = error_t::kOutRagne;
+		} else if (!(pbeg + offset < pend)) {
+			ret = error_t::kOffsetOutRagne;
+		} else if (!((pattern_pend - pattern_pbeg) < pend - pend)) {
+			ret = error_t::kPatterSizeOutRange;
+		} else {
+			ret = state_t::kCheckSuccesfull;
+		}
+		return ret;
+	}
+}
+// NAMESPACE FOPS
+namespace Fops {
+	// SEARCH
+	static ret_t Search(uint8_t const* pbeg,
+							  uint8_t const* pend,
+							  uint8_t const* pattern_pbeg,
+							  uint8_t const* pattern_pend,
+							  size_t offset = 0) {
+		ret_t ret{};
+		uint8_t const* new_pend{offset ? pbeg + offset : pend};
+		uint8_t const* it{std::search(pbeg, new_pend, pattern_pbeg, pattern_pend)}; 
+		if (it != new_pend) {
+			ret = it;
+		} else {
+			ret = state_t::kNotFound;
+		}
+		return ret;
+	}
 }
 #endif
