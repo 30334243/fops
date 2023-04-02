@@ -10,7 +10,9 @@
 #include <random>
 #include <algorithm>
 #include <memory>
+#include <functional>
 #include "fops_interface.hpp"
+#include "../venom/venom.hpp"
 
 // NAMESPACE FOPS
 namespace Fops {
@@ -23,7 +25,7 @@ namespace Fops {
 		dst.write((char*)pbeg, sz);
 	}
 	// WRITE
-	static void Write(std::shared_ptr<std::ofstream> dst,
+	static void Write(std::ofstream* dst,
 							uint8_t const* pbeg,
 							size_t const sz,
 							uint8_t const type) {
@@ -32,7 +34,7 @@ namespace Fops {
 	}
 	// WRITE
 	inline constexpr auto Write() {
-		return [] (std::shared_ptr<std::ofstream> dst,
+		return [] (std::ofstream* dst,
 					  uint8_t const* pbeg,
 					  size_t const sz,
 					  uint8_t const type) {
@@ -50,6 +52,10 @@ namespace Fops {
 }
 // NAMESPACE FOPS
 namespace Fops {
+	// RANDOM
+	static std::random_device rd{};
+	static std::mt19937 gen{rd()};
+	static std::uniform_int_distribution<uint64_t> d{0, 0xFFFFFFFF};
 	// READ
 	static std::vector<uint8_t> Read(std::ifstream& src,
 												uint8_t const type = kSig) {
@@ -67,18 +73,6 @@ namespace Fops {
 		};
 	}
 }
-std::random_device rd{};
-std::mt19937 gen{rd()};
-std::uniform_int_distribution<uint64_t> d{0, 0xFFFFFFFF};
-struct VectorHasher {
-    int operator()(std::vector<uint8_t> const& v) const {
-        int hash = v.size();
-        for(auto const &i : v) {
-            hash ^= (int)i + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-        }
-        return hash;
-    }
-};
 // NAMESPACE FOPS WRITE
 namespace Fops::Multi {
 	// WRITE
@@ -93,7 +87,7 @@ namespace Fops::Multi {
 					write(it->second, pbeg, sz, type);
 				} else {
 					char const* type_ext{type == kSig ? kSigExt : kLsigExt};
-					std::shared_ptr<std::ofstream> new_dst{
+					std::ofstream* new_dst{
 							new std::ofstream{
 								std::string{dir} + std::to_string(d(gen)) + type_ext}};
 					write(new_dst, pbeg, sz, type);
