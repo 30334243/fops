@@ -11,8 +11,11 @@
 #include <algorithm>
 #include <memory>
 #include <functional>
+#include <thread>
+#include <chrono>
 #include "fops_interface.hpp"
 #include "../venom/venom.hpp"
+#include "../venom/venom_interface.hpp"
 
 // NAMESPACE FOPS
 namespace Fops {
@@ -25,16 +28,17 @@ namespace Fops {
 		dst.write((char*)pbeg, sz);
 	}
 	// WRITE
-	static void Write(std::ofstream* dst,
-							uint8_t const* pbeg,
-							size_t const sz,
-							uint8_t const type) {
-		dst->write((char*)&sz, type);
-		dst->write((char*)pbeg, sz);
-	}
+	template<class T>
+		static void Write(T dst,
+								uint8_t const* pbeg,
+								size_t const sz,
+								uint8_t const type) {
+			dst->write((char*)&sz, type);
+			dst->write((char*)pbeg, sz);
+		}
 	// WRITE
-	inline constexpr auto Write() {
-		return [] (std::ofstream* dst,
+	constexpr auto Write() {
+		return [] (auto dst,
 					  uint8_t const* pbeg,
 					  size_t const sz,
 					  uint8_t const type) {
@@ -76,28 +80,28 @@ namespace Fops {
 // NAMESPACE FOPS WRITE
 namespace Fops::Multi {
 	// WRITE
-	template<class T, class Write>
-		static constexpr auto InitWrite(T& umap, Write write, char const* dir = "") {
-			return [&umap, write, dir] (uint8_t const* pbeg,
-												 size_t const sz,
-												 auto const key,
-												 uint8_t const type = kSig) {
-				auto it{umap.find(key)};
-				if (it != umap.cend()) {
-					write(it->second, pbeg, sz, type);
-				} else {
-					char const* type_ext{type == kSig ? kSigExt : kLsigExt};
-					std::ofstream* new_dst{
+	template<class Write>
+		static constexpr auto InitWrite(Write write, char const* dir = "") {
+			return [write, dir] (uint8_t const* pbeg,
+										size_t const sz,
+										uint8_t const type = kSig) {
+				return [write, dir, pbeg, sz, type] (auto& umap,
+																 Venom::Vec& key_f,
+																 Venom::Vec& key_s) {
+					if (auto it{umap.find(key_f)}; it != umap.cend()) {
+						write(it->second, pbeg, sz, type);
+					} else  if (auto it{umap.find(key_s)}; it != umap.cend()) {
+						write(it->second, pbeg, sz, type);
+					} else {
+						char const* type_ext{type == kSig ? kSigExt : kLsigExt};
+						std::shared_ptr<std::ofstream> new_dst{
 							new std::ofstream{
 								std::string{dir} + std::to_string(d(gen)) + type_ext}};
-					write(new_dst, pbeg, sz, type);
-					umap[key] = new_dst;
-					std::vector<uint8_t> hash(pbeg + 15, pbeg + 19);
-					hash.insert(hash.cend(), pbeg + 11, pbeg + 11 + 4);
-					hash.insert(hash.cend(), pbeg + 11 + 9, pbeg + 11 + 11);
-					hash.insert(hash.cend(), pbeg + 11 + 7, pbeg + 11 + 9);
-					umap[hash] = new_dst;
-				}
+						write(new_dst, pbeg, sz, type);
+						umap[key_f] = new_dst;
+						umap[key_s] = new_dst;
+					}
+				};
 			};
 		}
 }
