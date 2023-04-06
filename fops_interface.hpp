@@ -3,13 +3,14 @@
 
 #include <cstdint>
 #include <variant>
+#include <string>
 
 // NAMESPACE FOPS
 namespace Fops {
 	constexpr uint8_t kSig{2};
 	constexpr uint8_t kLsig{4};
-	static char const* kSigExt{".sig"};
-	static char const* kLsigExt{".lsig"};
+	static inline std::string const kSigExt{".sig"};
+	static inline std::string const kLsigExt{".lsig"};
 	// ERROR
 	enum class error_t {
 		kOutRagne, kOffsetOutOfRagne, kPatterSizeOutOfRange

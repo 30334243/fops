@@ -13,12 +13,13 @@
 #include <functional>
 #include <thread>
 #include <chrono>
+#include <filesystem>
 #include "fops_interface.hpp"
-#include "../venom/venom.hpp"
-#include "../venom/venom_interface.hpp"
 
 // NAMESPACE FOPS
 namespace Fops {
+	// NAMESPACE FILESYSTEM
+	namespace fs = std::filesystem;
 	// WRITE
 	static void Write(std::ofstream& dst,
 							uint8_t const* pbeg,
@@ -46,6 +47,12 @@ namespace Fops {
 		};
 	}
 	// WRITE
+	constexpr auto Write(uint8_t const* pbeg, size_t const sz, uint8_t const type) {
+		return [pbeg, sz, type] (std::shared_ptr<std::ofstream> dst) {
+			Write(dst, pbeg, sz, type);
+		};
+	}
+	// WRITE
 	static constexpr auto InitWrite(std::ofstream& dst,
 											  uint8_t const type = kSig) {
 		return [&dst, type] (uint8_t const* pbeg,
@@ -53,13 +60,30 @@ namespace Fops {
 			Write(dst, pbeg, sz, type);
 		};
 	}
+	// WRITE
+	static constexpr auto InitWrite(uint8_t const type) {
+		return [type] (uint8_t const* pbeg, size_t const sz) {
+			return [type, pbeg, sz] (auto dst) {
+				Write(dst, pbeg, sz, type);
+			};
+		};
+	}
+	// CREATE
+	static auto InitCreate(fs::path out, uint8_t const type) {
+		return [out, type] (fs::path name) {
+			std::string_view const ext{type == Fops::kSig ?
+				Fops::kSigExt : Fops::kLsigExt};
+			std::string d{out/name};
+			std::shared_ptr<std::ofstream> new_dst{
+				new std::ofstream{
+					out/name.concat(ext.cbegin(), ext.cend()),
+						std::ios::binary}};
+			return new_dst;
+		};
+	}
 }
 // NAMESPACE FOPS
 namespace Fops {
-	// RANDOM
-	static std::random_device rd{};
-	static std::mt19937 gen{rd()};
-	static std::uniform_int_distribution<uint64_t> d{0, 0xFFFFFFFF};
 	// READ
 	static std::vector<uint8_t> Read(std::ifstream& src,
 												uint8_t const type = kSig) {
@@ -76,34 +100,6 @@ namespace Fops {
 			return Read(src, type);
 		};
 	}
-}
-// NAMESPACE FOPS WRITE
-namespace Fops::Multi {
-	// WRITE
-	template<class Write>
-		static constexpr auto InitWrite(Write write, char const* dir = "") {
-			return [write, dir] (uint8_t const* pbeg,
-										size_t const sz,
-										uint8_t const type = kSig) {
-				return [write, dir, pbeg, sz, type] (auto& umap,
-																 Venom::Vec& key_f,
-																 Venom::Vec& key_s) {
-					if (auto it{umap.find(key_f)}; it != umap.cend()) {
-						write(it->second, pbeg, sz, type);
-					} else  if (auto it{umap.find(key_s)}; it != umap.cend()) {
-						write(it->second, pbeg, sz, type);
-					} else {
-						char const* type_ext{type == kSig ? kSigExt : kLsigExt};
-						std::shared_ptr<std::ofstream> new_dst{
-							new std::ofstream{
-								std::string{dir} + std::to_string(d(gen)) + type_ext}};
-						write(new_dst, pbeg, sz, type);
-						umap[key_f] = new_dst;
-						umap[key_s] = new_dst;
-					}
-				};
-			};
-		}
 }
 // NAMESPACE FOPS CHECK
 namespace Fops::Check {
